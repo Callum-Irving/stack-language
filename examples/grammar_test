@@ -1,0 +1,12 @@
+const buffer = 1024 bytes
+
+let fact (int ptr -> int) = {
+    dup + recurse swap over
+    IF {
+        ifinner
+    } ELSE {
+        elseinner        
+    }
+}
+
+let useless () = {dup}
