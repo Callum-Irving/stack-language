@@ -184,9 +184,10 @@ fn parse_expr(expr: Vec<Pair<Rule>>) -> Expr {
 }
 
 fn parse_literal(literal: Pair<Rule>) -> Stmt {
+    let literal = literal.into_inner().next().unwrap();
     match literal.as_rule() {
         Rule::integer => Stmt::Literal(Literal::Integer(literal.as_str().parse().unwrap())),
         Rule::string => Stmt::Literal(Literal::String(literal.as_str().to_owned())),
-        _ => panic!(),
+        _ => panic!("UNKNOWN RULE: {:?}", literal),
     }
 }

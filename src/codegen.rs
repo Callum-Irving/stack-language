@@ -19,6 +19,8 @@ pub fn generate_asm(mut ast: Program, filename: PathBuf) {
     .unwrap();
     writeln!(tmpfile).unwrap();
 
+    let mut string_literals = vec![];
+
     // .text section
     writeln!(tmpfile, "section .text").unwrap();
 
@@ -26,7 +28,13 @@ pub fn generate_asm(mut ast: Program, filename: PathBuf) {
         writeln!(tmpfile, "main:").unwrap();
         for stmt in &function.expr.0 {
             match stmt {
-                Stmt::Literal(literal) => todo!(), // Push value to stack
+                Stmt::Literal(literal) => match literal {
+                    Literal::Integer(num) => writeln!(tmpfile, "push {}", num).unwrap(),
+                    Literal::String(string) => {
+                        writeln!(tmpfile, "push str_{}", string_literals.len()).unwrap();
+                        string_literals.push(string.to_owned());
+                    }
+                }, // Push value to stack
                 Stmt::MathOp(op) => match op {
                     MathOp::Plus => {}
                     MathOp::Minus => {}
@@ -55,7 +63,9 @@ pub fn generate_asm(mut ast: Program, filename: PathBuf) {
                     if let Some(literal) = ast.constants.get(name) {
                         match literal {
                             // TODO: Push number instead of using section in .data
-                            Literal::Integer(_) => writeln!(tmpfile, "push [{}]", name).unwrap(),
+                            Literal::Integer(_) => {
+                                writeln!(tmpfile, "push qword [{}]", name).unwrap()
+                            }
                             Literal::String(_) => writeln!(tmpfile, "push {}", name).unwrap(),
                         }
                     } else if ast.arrays.get(name).is_some() {
@@ -85,19 +95,24 @@ pub fn generate_asm(mut ast: Program, filename: PathBuf) {
     // .data section
     writeln!(tmpfile, "section .data").unwrap();
 
-    for (name, constant) in &mut ast.constants {
+    for (name, constant) in &ast.constants {
         match constant {
             Literal::Integer(num) => writeln!(tmpfile, "{}: {}", name, num).unwrap(),
             Literal::String(string) => {
-                if string.ends_with("\\n\"") {
-                    string.truncate(string.len() - 3);
-                    string.push_str("\", 10");
-                }
-                let formatted = str::replace(&string, "\\n", "\", 10, \"");
-                writeln!(tmpfile, "{}: db {}, 0", name, formatted).unwrap();
+                writeln!(tmpfile, "{}: db {}, 0", name, escape_str(string.to_owned())).unwrap();
             }
         }
     }
+
+    string_literals
+        .into_iter()
+        .map(|s| escape_str(s))
+        .enumerate()
+        .for_each(|(i, string)| {
+            writeln!(tmpfile, "str_{}: db {}, 0", i, string).unwrap();
+        });
+
+    writeln!(tmpfile, "fint: db \"%d\", 0").unwrap();
 
     writeln!(tmpfile).unwrap();
 
@@ -114,6 +129,14 @@ pub fn generate_asm(mut ast: Program, filename: PathBuf) {
 
     tmpfile.seek(SeekFrom::Start(0)).unwrap();
     tmpfile.sync_all().unwrap();
+}
+
+fn escape_str(mut string: String) -> String {
+    if string.ends_with("\\n\"") {
+        string.truncate(string.len() - 3);
+        string.push_str("\", 10");
+    }
+    string.replace("\\n", "\", 10, \"")
 }
 
 fn write_predefined(file: &mut File, ident: &str) {

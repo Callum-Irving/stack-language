@@ -1,5 +1,0 @@
-const msg = "Hello, world!\n"
-
-let main () = {
-    msg puts
-}

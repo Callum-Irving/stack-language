@@ -44,7 +44,7 @@ fn main() {
     let program = parser::parse(file_contents);
     generate_asm(program, input_file.with_extension("asm"));
 
-    Command::new("nasm")
+    let nasm_out = Command::new("nasm")
         .arg("-felf64")
         .arg("-g")
         .arg("-o")
@@ -52,7 +52,9 @@ fn main() {
         .arg(input_file.with_extension("asm").as_os_str())
         .output()
         .unwrap();
-    Command::new("gcc")
+    print!("{}", std::str::from_utf8(&nasm_out.stdout).unwrap());
+    eprint!("{}", std::str::from_utf8(&nasm_out.stderr).unwrap());
+    let gcc = Command::new("gcc")
         .arg("-no-pie")
         .arg("-g")
         .arg("-o")
@@ -60,6 +62,8 @@ fn main() {
         .arg(input_file.with_extension("o").as_os_str())
         .output()
         .unwrap();
+    print!("{}", std::str::from_utf8(&gcc.stdout).unwrap());
+    eprint!("{}", std::str::from_utf8(&gcc.stderr).unwrap());
     Command::new("rm")
         .arg(input_file.with_extension("asm").as_os_str())
         .arg(input_file.with_extension("o").as_os_str())
