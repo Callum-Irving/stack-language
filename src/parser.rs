@@ -9,34 +9,35 @@ struct ProgramParser;
 
 #[derive(Debug)]
 pub struct Program {
-    functions: HashMap<String, Function>,
-    constants: HashMap<String, Constant>,
+    pub functions: HashMap<String, Function>,
+    pub constants: HashMap<String, Literal>,
+    pub arrays: HashMap<String, usize>,
 }
 
 #[derive(Debug)]
-struct Function {
-    inputs: Vec<BasicType>,
-    outputs: Vec<BasicType>,
-    expr: Expr,
+pub struct Function {
+    pub inputs: Vec<BasicType>,
+    pub outputs: Vec<BasicType>,
+    pub expr: Expr,
 }
 
 #[derive(Debug)]
-enum Constant {
+pub enum Constant {
     Single(Literal),
     Array(usize),
 }
 
 #[derive(Debug)]
-enum BasicType {
+pub enum BasicType {
     Pointer,
     Integer,
 }
 
 #[derive(Debug)]
-struct Expr(Vec<Stmt>);
+pub struct Expr(pub Vec<Stmt>);
 
 #[derive(Debug)]
-enum Stmt {
+pub enum Stmt {
     Literal(Literal),
     IfStmt(IfStmt),
     MathOp(MathOp),
@@ -45,19 +46,19 @@ enum Stmt {
 }
 
 #[derive(Debug)]
-enum Literal {
+pub enum Literal {
     Integer(i64),
     String(String),
 }
 
 #[derive(Debug)]
-struct IfStmt {
-    if_expr: Expr,
-    else_expr: Option<Expr>,
+pub struct IfStmt {
+    pub if_expr: Expr,
+    pub else_expr: Option<Expr>,
 }
 
 #[derive(Debug)]
-enum MathOp {
+pub enum MathOp {
     Plus,
     Minus,
     Multiply,
@@ -66,7 +67,7 @@ enum MathOp {
 }
 
 #[derive(Debug)]
-enum ComparisonOp {
+pub enum ComparisonOp {
     Eq,
     NotEq,
     Gt,
@@ -79,6 +80,7 @@ pub fn parse(input: String) -> Program {
     let mut program = Program {
         functions: HashMap::new(),
         constants: HashMap::new(),
+        arrays: HashMap::new(),
     };
 
     for pair in pairs {
@@ -87,19 +89,25 @@ pub fn parse(input: String) -> Program {
                 let mut inners = pair.into_inner();
                 let name = inners.next().unwrap().as_str().to_owned();
                 let value_raw = inners.next().unwrap();
-                let value = match value_raw.as_rule() {
-                    Rule::integer => Constant::Array(value_raw.as_str().parse().unwrap()),
+                match value_raw.as_rule() {
+                    Rule::integer => {
+                        program
+                            .arrays
+                            .insert(name, value_raw.as_str().parse().unwrap());
+                    }
                     Rule::literal => {
                         let inner = value_raw.into_inner().next().unwrap();
-                        Constant::Single(match inner.as_rule() {
-                            Rule::integer => Literal::Integer(inner.as_str().parse().unwrap()),
-                            Rule::string => Literal::String(inner.as_str().to_owned()),
-                            _ => panic!(),
-                        })
+                        program.constants.insert(
+                            name,
+                            match inner.as_rule() {
+                                Rule::integer => Literal::Integer(inner.as_str().parse().unwrap()),
+                                Rule::string => Literal::String(inner.as_str().to_owned()),
+                                _ => panic!(),
+                            },
+                        );
                     }
                     _ => panic!(),
                 };
-                program.constants.insert(name, value);
             }
             Rule::function => {
                 let mut func = Function {
@@ -169,10 +177,7 @@ fn parse_expr(expr: Vec<Pair<Rule>>) -> Expr {
                 _ => panic!(),
             },
             Rule::ident => Stmt::Ident(statement.as_str().to_owned()),
-            _ => {
-                println!("UNKNOWN: {:?}", statement);
-                panic!();
-            }
+            _ => panic!(),
         });
     }
     Expr(statements)

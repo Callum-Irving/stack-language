@@ -1,0 +1,5 @@
+const hello_world = "Hello, world!\n"
+
+let main () = {
+    hello_world puts
+}

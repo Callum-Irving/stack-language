@@ -1,4 +1,5 @@
 const buffer = 1024 bytes
+const hello_world = "Hello, \nworld!\n"
 
 let fact (int ptr -> int) = {
     dup + recurse swap over

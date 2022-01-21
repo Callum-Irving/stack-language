@@ -1,5 +1,9 @@
 use clap::{App, AppSettings, Arg, Parser};
+use std::process::Command;
 use std::{fs, path::PathBuf, process::exit};
+use std::io::Read;
+
+use crate::codegen::generate_asm;
 
 mod codegen;
 mod parser;
@@ -37,6 +41,11 @@ fn main() {
     };
 
     let program = parser::parse(file_contents);
-    println!("PROGRAM:");
-    println!("{:?}", program);
+    let file = generate_asm(program);
+    file.sync_all().unwrap();
+    drop(file);
+
+    Command::new("nasm").arg("-felf64").arg("-g").arg("output.asm").output().unwrap();
+    Command::new("gcc").arg("-no-pie").arg("-g").arg("output.o").output().unwrap();
+    Command::new("rm").arg("output.asm").arg("output.o").output().unwrap();
 }
