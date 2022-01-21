@@ -1,7 +1,8 @@
 use clap::{App, AppSettings, Arg, Parser};
+use std::io::Read;
+use std::path::Path;
 use std::process::Command;
 use std::{fs, path::PathBuf, process::exit};
-use std::io::Read;
 
 use crate::codegen::generate_asm;
 
@@ -25,13 +26,13 @@ fn main() {
         .setting(AppSettings::ArgRequiredElseHelp)
         .arg(Arg::new("filename").help("The program source file"));
     let matches = args.get_matches_mut();
-    let file = PathBuf::from(matches.value_of("filename").unwrap());
-    if !file.is_file() {
+    let input_file = PathBuf::from(matches.value_of("filename").unwrap());
+    if !input_file.is_file() {
         eprintln!("ERROR: file provided does not exist\n");
         args.print_help().unwrap();
         exit(1);
     }
-    let file_contents = match fs::read_to_string(file) {
+    let file_contents = match fs::read_to_string(&input_file) {
         Ok(contents) => contents,
         Err(_) => {
             eprintln!("ERROR: could not read file");
@@ -41,11 +42,27 @@ fn main() {
     };
 
     let program = parser::parse(file_contents);
-    let file = generate_asm(program);
-    file.sync_all().unwrap();
-    drop(file);
+    generate_asm(program, input_file.with_extension("asm"));
 
-    Command::new("nasm").arg("-felf64").arg("-g").arg("output.asm").output().unwrap();
-    Command::new("gcc").arg("-no-pie").arg("-g").arg("output.o").output().unwrap();
-    Command::new("rm").arg("output.asm").arg("output.o").output().unwrap();
+    Command::new("nasm")
+        .arg("-felf64")
+        .arg("-g")
+        .arg("-o")
+        .arg(input_file.with_extension("o").as_os_str())
+        .arg(input_file.with_extension("asm").as_os_str())
+        .output()
+        .unwrap();
+    Command::new("gcc")
+        .arg("-no-pie")
+        .arg("-g")
+        .arg("-o")
+        .arg(input_file.with_extension("").as_os_str())
+        .arg(input_file.with_extension("o").as_os_str())
+        .output()
+        .unwrap();
+    Command::new("rm")
+        .arg(input_file.with_extension("asm").as_os_str())
+        .arg(input_file.with_extension("o").as_os_str())
+        .output()
+        .unwrap();
 }

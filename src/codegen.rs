@@ -1,13 +1,14 @@
 use std::io::{Seek, SeekFrom};
+use std::path::PathBuf;
 use std::{fs::File, io::Write};
-// use tempfile::tempfile;
 
 use crate::parser::{ComparisonOp, Literal, MathOp, Program, Stmt};
 
 const PREDEFINED: [&'static str; 6] = ["puts", "print", "drop", "dup", "swap", "read"];
 
-pub fn generate_asm(mut ast: Program) -> File {
-    let mut tmpfile: File = File::create("output.asm").unwrap();
+pub fn generate_asm(mut ast: Program, filename: PathBuf) {
+    // let mut tmpfile = NamedTempFile::new().unwrap();
+    let mut tmpfile = File::create(filename).unwrap();
 
     // Declare external C functions and main function
     writeln!(tmpfile, "global main").unwrap();
@@ -112,8 +113,7 @@ pub fn generate_asm(mut ast: Program) -> File {
     }
 
     tmpfile.seek(SeekFrom::Start(0)).unwrap();
-
-    tmpfile
+    tmpfile.sync_all().unwrap();
 }
 
 fn write_predefined(file: &mut File, ident: &str) {
