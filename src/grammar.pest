@@ -28,6 +28,6 @@ comparisonop = { ">" | "<" | "=?" | "!=" }
 basictype = { "ptr" | "int" }
 ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 literal = { integer | string }
-integer = @{ ASCII_DIGIT+ }
+integer = @{ "-"? ~ ASCII_DIGIT+ }
 string = @{ "\"" ~ ( (!("\"" | "\\") ~ ANY) | ("\\" ~ predefined) )* ~ "\"" }
 predefined = _{ "n" | "r" | "t" | "\\" | "0" | "\"" | "'" }

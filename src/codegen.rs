@@ -44,30 +44,73 @@ pub fn generate_asm(ast: Program, filename: PathBuf) {
                     }
                 }, // Push value to stack
                 Stmt::MathOp(op) => match op {
-                    MathOp::Plus => {}
-                    MathOp::Minus => {}
-                    MathOp::Multiply => {}
-                    MathOp::Divide => {}
-                    MathOp::Mod => {}
+                    MathOp::Plus => {
+                        writeln!(tmpfile, "pop rbx").unwrap();
+                        writeln!(tmpfile, "pop rax").unwrap();
+                        writeln!(tmpfile, "add rax, rbx").unwrap();
+                        writeln!(tmpfile, "push rax").unwrap();
+                    }
+                    MathOp::Minus => {
+                        writeln!(tmpfile, "pop rbx").unwrap();
+                        writeln!(tmpfile, "pop rax").unwrap();
+                        writeln!(tmpfile, "sub rax, rbx").unwrap();
+                        writeln!(tmpfile, "push rax").unwrap();
+                    }
+                    MathOp::Multiply => {
+                        writeln!(tmpfile, "pop rbx").unwrap();
+                        writeln!(tmpfile, "pop rax").unwrap();
+                        writeln!(tmpfile, "imul rbx").unwrap();
+                        writeln!(tmpfile, "push rax").unwrap();
+                    }
+                    MathOp::Divide => {
+                        writeln!(tmpfile, "pop rbx").unwrap();
+                        writeln!(tmpfile, "pop rax").unwrap();
+                        writeln!(tmpfile, "idiv rbx").unwrap();
+                        writeln!(tmpfile, "push rax").unwrap();
+                    }
+                    MathOp::Mod => {
+                        writeln!(tmpfile, "xor rdx, rdx").unwrap();
+                        writeln!(tmpfile, "pop rbx").unwrap();
+                        writeln!(tmpfile, "pop rax").unwrap();
+                        writeln!(tmpfile, "idiv rbx").unwrap();
+                        writeln!(tmpfile, "push rdx").unwrap();
+                    }
                 },
                 Stmt::ComparisonOp(op) => match op {
-                    ComparisonOp::Eq => {}
-                    ComparisonOp::NotEq => {}
-                    ComparisonOp::Gt => {}
-                    ComparisonOp::Lt => {}
+                    ComparisonOp::Eq => {
+                        writeln!(tmpfile, "xor rax, rax").unwrap();
+                        writeln!(tmpfile, "pop rcx").unwrap();
+                        writeln!(tmpfile, "pop rbx").unwrap();
+                        writeln!(tmpfile, "cmp rbx, rcx").unwrap();
+                        writeln!(tmpfile, "sete al").unwrap();
+                        writeln!(tmpfile, "push rax").unwrap();
+                    }
+                    ComparisonOp::NotEq => {
+                        writeln!(tmpfile, "xor rax, rax").unwrap();
+                        writeln!(tmpfile, "pop rcx").unwrap();
+                        writeln!(tmpfile, "pop rbx").unwrap();
+                        writeln!(tmpfile, "cmp rbx, rcx").unwrap();
+                        writeln!(tmpfile, "setne al").unwrap();
+                        writeln!(tmpfile, "push rax").unwrap();
+                    }
+                    ComparisonOp::Gt => {
+                        writeln!(tmpfile, "xor rax, rax").unwrap();
+                        writeln!(tmpfile, "pop rcx").unwrap();
+                        writeln!(tmpfile, "pop rbx").unwrap();
+                        writeln!(tmpfile, "cmp rbx, rcx").unwrap();
+                        writeln!(tmpfile, "setg al").unwrap();
+                        writeln!(tmpfile, "push rax").unwrap();
+                    }
+                    ComparisonOp::Lt => {
+                        writeln!(tmpfile, "xor rax, rax").unwrap();
+                        writeln!(tmpfile, "pop rcx").unwrap();
+                        writeln!(tmpfile, "pop rbx").unwrap();
+                        writeln!(tmpfile, "cmp rbx, rcx").unwrap();
+                        writeln!(tmpfile, "setl al").unwrap();
+                        writeln!(tmpfile, "push rax").unwrap();
+                    }
                 },
                 Stmt::Ident(name) => {
-                    // Check if ident is constant
-                    //  if array, push <name>
-                    //  if literal, push [<name>]
-                    // Check if ident is function
-                    //  Example call:
-                    //      mov      rax, rsp
-                    //      mov      rsp, [ret_sp]
-                    //      call     add1
-                    //      mov      [ret_sp], rsp
-                    //      mov      rsp, rax
-                    //      error
                     if let Some(literal) = ast.constants.get(name) {
                         match literal {
                             // TODO: Push number instead of using section in .data

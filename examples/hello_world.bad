@@ -5,10 +5,8 @@ let dumbfunc () = {
 }
 
 let main () = {
-    dumbfunc print
-    "\n" puts
+    dumbfunc print "\n" puts
     msg puts
     "hey there!\n" puts
-    1234 print
-    "\n" puts
+    1234 print "\n" puts
 }
