@@ -22,12 +22,6 @@ pub struct Function {
 }
 
 #[derive(Debug)]
-pub enum Constant {
-    Single(Literal),
-    Array(usize),
-}
-
-#[derive(Debug)]
 pub enum BasicType {
     Pointer,
     Integer,

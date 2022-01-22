@@ -3,10 +3,11 @@ use std::path::PathBuf;
 use std::{fs::File, io::Write};
 
 use crate::parser::{ComparisonOp, Literal, MathOp, Program, Stmt};
+use crate::RET_STACK_SIZE;
 
 const PREDEFINED: [&'static str; 6] = ["puts", "print", "drop", "dup", "swap", "read"];
 
-pub fn generate_asm(mut ast: Program, filename: PathBuf) {
+pub fn generate_asm(ast: Program, filename: PathBuf) {
     // let mut tmpfile = NamedTempFile::new().unwrap();
     let mut tmpfile = File::create(filename).unwrap();
 
@@ -25,7 +26,14 @@ pub fn generate_asm(mut ast: Program, filename: PathBuf) {
     writeln!(tmpfile, "section .text").unwrap();
 
     for (name, function) in &ast.functions {
-        writeln!(tmpfile, "main:").unwrap();
+        writeln!(tmpfile, "{}:", name).unwrap();
+        if name != "main" {
+            writeln!(tmpfile, "mov [ret_sp], rsp").unwrap();
+            writeln!(tmpfile, "mov rsp, rax").unwrap();
+        } else {
+            writeln!(tmpfile, "mov qword [ret_sp], ret_stack_end").unwrap();
+        }
+
         for stmt in &function.expr.0 {
             match stmt {
                 Stmt::Literal(literal) => match literal {
@@ -87,6 +95,10 @@ pub fn generate_asm(mut ast: Program, filename: PathBuf) {
                 }
             }
         }
+        if name != "main" {
+            writeln!(tmpfile, "mov rax, rsp").unwrap();
+            writeln!(tmpfile, "mov rsp, [ret_sp]").unwrap();
+        }
         writeln!(tmpfile, "ret").unwrap();
     }
 
@@ -113,14 +125,13 @@ pub fn generate_asm(mut ast: Program, filename: PathBuf) {
         });
 
     writeln!(tmpfile, "fint: db \"%d\", 0").unwrap();
-
     writeln!(tmpfile).unwrap();
 
     // .bss section
     writeln!(tmpfile, "section .bss").unwrap();
 
     writeln!(tmpfile, "ret_sp: resq 1").unwrap();
-    writeln!(tmpfile, "ret_stack: resb 2048").unwrap();
+    writeln!(tmpfile, "ret_stack: resq {}", RET_STACK_SIZE).unwrap();
     writeln!(tmpfile, "ret_stack_end: equ $").unwrap();
 
     for (name, num_bytes) in &ast.arrays {

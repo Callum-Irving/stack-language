@@ -1,0 +1,14 @@
+const msg = "Hello, world!\n"
+
+let dumbfunc () = {
+    1
+}
+
+let main () = {
+    dumbfunc print
+    "\n" puts
+    msg puts
+    "hey there!\n" puts
+    1234 print
+    "\n" puts
+}
