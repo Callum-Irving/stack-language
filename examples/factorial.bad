@@ -1,0 +1,11 @@
+let factorial ( int -> int ) = {
+	dup 0 != IF {
+		dup 1 - factorial *
+	} ELSE {
+		drop 1
+	}
+}
+
+let main () = {
+	5 factorial print "\n" puts
+}

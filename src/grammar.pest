@@ -14,10 +14,10 @@ outputs = { ("->" ~ basictype+)? }
 expr = { stmt+ }
 
 stmt = {
-	literal
-    | ifstmt
+    ifstmt
     | mathop
     | comparisonop
+	| literal
     | ident
 }
 

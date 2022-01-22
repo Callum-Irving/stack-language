@@ -1,0 +1,11 @@
+let fib ( int -> int ) = {
+	dup 2 < IF {
+		dup drop
+	} ELSE {
+		1 - dup fib swap 1 - fib +
+	}
+}
+
+let main () = {
+	4 fib print "\n" puts
+}
