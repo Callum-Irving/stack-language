@@ -1,0 +1,6 @@
+const buf = 256 bytes
+
+let main () = {
+    buf 256 read drop
+    buf puts
+}

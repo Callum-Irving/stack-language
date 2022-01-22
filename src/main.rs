@@ -66,9 +66,9 @@ fn main() {
         .unwrap();
     print!("{}", std::str::from_utf8(&gcc.stdout).unwrap());
     eprint!("{}", std::str::from_utf8(&gcc.stderr).unwrap());
-    // Command::new("rm")
-    //     .arg(input_file.with_extension("asm").as_os_str())
-    //     .arg(input_file.with_extension("o").as_os_str())
-    //     .output()
-    //     .unwrap();
+    Command::new("rm")
+        .arg(input_file.with_extension("asm").as_os_str())
+        .arg(input_file.with_extension("o").as_os_str())
+        .output()
+        .unwrap();
 }
