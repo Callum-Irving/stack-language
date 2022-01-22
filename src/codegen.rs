@@ -21,6 +21,7 @@ pub fn generate_asm(ast: Program, filename: PathBuf) {
     writeln!(tmpfile).unwrap();
 
     let mut string_literals = vec![];
+    let mut num_ifs = 0;
 
     // .text section
     writeln!(tmpfile, "section .text").unwrap();
@@ -35,108 +36,10 @@ pub fn generate_asm(ast: Program, filename: PathBuf) {
         }
 
         for stmt in &function.expr.0 {
-            match stmt {
-                Stmt::Literal(literal) => match literal {
-                    Literal::Integer(num) => writeln!(tmpfile, "push {}", num).unwrap(),
-                    Literal::String(string) => {
-                        writeln!(tmpfile, "push str_{}", string_literals.len()).unwrap();
-                        string_literals.push(string.to_owned());
-                    }
-                }, // Push value to stack
-                Stmt::MathOp(op) => match op {
-                    MathOp::Plus => {
-                        writeln!(tmpfile, "pop rbx").unwrap();
-                        writeln!(tmpfile, "pop rax").unwrap();
-                        writeln!(tmpfile, "add rax, rbx").unwrap();
-                        writeln!(tmpfile, "push rax").unwrap();
-                    }
-                    MathOp::Minus => {
-                        writeln!(tmpfile, "pop rbx").unwrap();
-                        writeln!(tmpfile, "pop rax").unwrap();
-                        writeln!(tmpfile, "sub rax, rbx").unwrap();
-                        writeln!(tmpfile, "push rax").unwrap();
-                    }
-                    MathOp::Multiply => {
-                        writeln!(tmpfile, "pop rbx").unwrap();
-                        writeln!(tmpfile, "pop rax").unwrap();
-                        writeln!(tmpfile, "imul rbx").unwrap();
-                        writeln!(tmpfile, "push rax").unwrap();
-                    }
-                    MathOp::Divide => {
-                        writeln!(tmpfile, "pop rbx").unwrap();
-                        writeln!(tmpfile, "pop rax").unwrap();
-                        writeln!(tmpfile, "idiv rbx").unwrap();
-                        writeln!(tmpfile, "push rax").unwrap();
-                    }
-                    MathOp::Mod => {
-                        writeln!(tmpfile, "xor rdx, rdx").unwrap();
-                        writeln!(tmpfile, "pop rbx").unwrap();
-                        writeln!(tmpfile, "pop rax").unwrap();
-                        writeln!(tmpfile, "idiv rbx").unwrap();
-                        writeln!(tmpfile, "push rdx").unwrap();
-                    }
-                },
-                Stmt::ComparisonOp(op) => match op {
-                    ComparisonOp::Eq => {
-                        writeln!(tmpfile, "xor rax, rax").unwrap();
-                        writeln!(tmpfile, "pop rcx").unwrap();
-                        writeln!(tmpfile, "pop rbx").unwrap();
-                        writeln!(tmpfile, "cmp rbx, rcx").unwrap();
-                        writeln!(tmpfile, "sete al").unwrap();
-                        writeln!(tmpfile, "push rax").unwrap();
-                    }
-                    ComparisonOp::NotEq => {
-                        writeln!(tmpfile, "xor rax, rax").unwrap();
-                        writeln!(tmpfile, "pop rcx").unwrap();
-                        writeln!(tmpfile, "pop rbx").unwrap();
-                        writeln!(tmpfile, "cmp rbx, rcx").unwrap();
-                        writeln!(tmpfile, "setne al").unwrap();
-                        writeln!(tmpfile, "push rax").unwrap();
-                    }
-                    ComparisonOp::Gt => {
-                        writeln!(tmpfile, "xor rax, rax").unwrap();
-                        writeln!(tmpfile, "pop rcx").unwrap();
-                        writeln!(tmpfile, "pop rbx").unwrap();
-                        writeln!(tmpfile, "cmp rbx, rcx").unwrap();
-                        writeln!(tmpfile, "setg al").unwrap();
-                        writeln!(tmpfile, "push rax").unwrap();
-                    }
-                    ComparisonOp::Lt => {
-                        writeln!(tmpfile, "xor rax, rax").unwrap();
-                        writeln!(tmpfile, "pop rcx").unwrap();
-                        writeln!(tmpfile, "pop rbx").unwrap();
-                        writeln!(tmpfile, "cmp rbx, rcx").unwrap();
-                        writeln!(tmpfile, "setl al").unwrap();
-                        writeln!(tmpfile, "push rax").unwrap();
-                    }
-                },
-                Stmt::Ident(name) => {
-                    if let Some(literal) = ast.constants.get(name) {
-                        match literal {
-                            // TODO: Push number instead of using section in .data
-                            Literal::Integer(_) => {
-                                writeln!(tmpfile, "push qword [{}]", name).unwrap()
-                            }
-                            Literal::String(_) => writeln!(tmpfile, "push {}", name).unwrap(),
-                        }
-                    } else if ast.arrays.get(name).is_some() {
-                        writeln!(tmpfile, "push {}", name).unwrap();
-                    } else if ast.functions.get(name).is_some() {
-                        writeln!(tmpfile, "mov rax, rsp").unwrap();
-                        writeln!(tmpfile, "mov rsp, [ret_sp]").unwrap();
-                        writeln!(tmpfile, "call {}", name).unwrap();
-                        writeln!(tmpfile, "mov [ret_sp], rsp").unwrap();
-                        writeln!(tmpfile, "mov rsp, rax").unwrap();
-                    } else if PREDEFINED.contains(&name.as_str()) {
-                        write_predefined(&mut tmpfile, name);
-                    } else {
-                        panic!("Unknown identifier: {}", name);
-                    }
-                }
-                Stmt::IfStmt(if_stmt) => {
-                    todo!();
-                }
-            }
+            let (mut strings, new_ifs) =
+                write_stmt(&mut tmpfile, stmt, &ast, string_literals.len(), num_ifs);
+            string_literals.append(&mut strings);
+            num_ifs = new_ifs;
         }
         if name != "main" {
             writeln!(tmpfile, "mov rax, rsp").unwrap();
@@ -191,6 +94,140 @@ fn escape_str(mut string: String) -> String {
         string.push_str("\", 10");
     }
     string.replace("\\n", "\", 10, \"")
+}
+
+fn write_stmt(
+    tmpfile: &mut File,
+    stmt: &Stmt,
+    ast: &Program,
+    num_strs: usize,
+    mut num_ifs: usize,
+) -> (Vec<String>, usize) {
+    let mut string_literals = vec![];
+    match stmt {
+        Stmt::Literal(literal) => match literal {
+            Literal::Integer(num) => writeln!(tmpfile, "push {}", num).unwrap(),
+            Literal::String(string) => {
+                writeln!(tmpfile, "push str_{}", num_strs + string_literals.len()).unwrap();
+                string_literals.push(string.to_owned());
+            }
+        }, // Push value to stack
+        Stmt::MathOp(op) => match op {
+            MathOp::Plus => {
+                writeln!(tmpfile, "pop rbx").unwrap();
+                writeln!(tmpfile, "pop rax").unwrap();
+                writeln!(tmpfile, "add rax, rbx").unwrap();
+                writeln!(tmpfile, "push rax").unwrap();
+            }
+            MathOp::Minus => {
+                writeln!(tmpfile, "pop rbx").unwrap();
+                writeln!(tmpfile, "pop rax").unwrap();
+                writeln!(tmpfile, "sub rax, rbx").unwrap();
+                writeln!(tmpfile, "push rax").unwrap();
+            }
+            MathOp::Multiply => {
+                writeln!(tmpfile, "pop rbx").unwrap();
+                writeln!(tmpfile, "pop rax").unwrap();
+                writeln!(tmpfile, "imul rbx").unwrap();
+                writeln!(tmpfile, "push rax").unwrap();
+            }
+            MathOp::Divide => {
+                writeln!(tmpfile, "pop rbx").unwrap();
+                writeln!(tmpfile, "pop rax").unwrap();
+                writeln!(tmpfile, "idiv rbx").unwrap();
+                writeln!(tmpfile, "push rax").unwrap();
+            }
+            MathOp::Mod => {
+                writeln!(tmpfile, "xor rdx, rdx").unwrap();
+                writeln!(tmpfile, "pop rbx").unwrap();
+                writeln!(tmpfile, "pop rax").unwrap();
+                writeln!(tmpfile, "idiv rbx").unwrap();
+                writeln!(tmpfile, "push rdx").unwrap();
+            }
+        },
+        Stmt::ComparisonOp(op) => match op {
+            ComparisonOp::Eq => {
+                writeln!(tmpfile, "xor rax, rax").unwrap();
+                writeln!(tmpfile, "pop rcx").unwrap();
+                writeln!(tmpfile, "pop rbx").unwrap();
+                writeln!(tmpfile, "cmp rbx, rcx").unwrap();
+                writeln!(tmpfile, "sete al").unwrap();
+                writeln!(tmpfile, "push rax").unwrap();
+            }
+            ComparisonOp::NotEq => {
+                writeln!(tmpfile, "xor rax, rax").unwrap();
+                writeln!(tmpfile, "pop rcx").unwrap();
+                writeln!(tmpfile, "pop rbx").unwrap();
+                writeln!(tmpfile, "cmp rbx, rcx").unwrap();
+                writeln!(tmpfile, "setne al").unwrap();
+                writeln!(tmpfile, "push rax").unwrap();
+            }
+            ComparisonOp::Gt => {
+                writeln!(tmpfile, "xor rax, rax").unwrap();
+                writeln!(tmpfile, "pop rcx").unwrap();
+                writeln!(tmpfile, "pop rbx").unwrap();
+                writeln!(tmpfile, "cmp rbx, rcx").unwrap();
+                writeln!(tmpfile, "setg al").unwrap();
+                writeln!(tmpfile, "push rax").unwrap();
+            }
+            ComparisonOp::Lt => {
+                writeln!(tmpfile, "xor rax, rax").unwrap();
+                writeln!(tmpfile, "pop rcx").unwrap();
+                writeln!(tmpfile, "pop rbx").unwrap();
+                writeln!(tmpfile, "cmp rbx, rcx").unwrap();
+                writeln!(tmpfile, "setl al").unwrap();
+                writeln!(tmpfile, "push rax").unwrap();
+            }
+        },
+        Stmt::Ident(name) => {
+            if let Some(literal) = ast.constants.get(name) {
+                match literal {
+                    // TODO: Push number instead of using section in .data
+                    Literal::Integer(_) => writeln!(tmpfile, "push qword [{}]", name).unwrap(),
+                    Literal::String(_) => writeln!(tmpfile, "push {}", name).unwrap(),
+                }
+            } else if ast.arrays.get(name).is_some() {
+                writeln!(tmpfile, "push {}", name).unwrap();
+            } else if ast.functions.get(name).is_some() {
+                writeln!(tmpfile, "mov rax, rsp").unwrap();
+                writeln!(tmpfile, "mov rsp, [ret_sp]").unwrap();
+                writeln!(tmpfile, "call {}", name).unwrap();
+                writeln!(tmpfile, "mov [ret_sp], rsp").unwrap();
+                writeln!(tmpfile, "mov rsp, rax").unwrap();
+            } else if PREDEFINED.contains(&name.as_str()) {
+                write_predefined(tmpfile, name);
+            } else {
+                panic!("Unknown identifier: {}", name);
+            }
+        }
+        Stmt::IfStmt(if_stmt) => {
+            writeln!(tmpfile, "pop rax").unwrap();
+            writeln!(tmpfile, "cmp rax, 0").unwrap();
+            writeln!(tmpfile, "je IF_{}", num_ifs).unwrap();
+            let sto = num_ifs;
+            num_ifs += 1;
+            // if expression
+            for stmt in &if_stmt.if_expr.0 {
+                let mut results = write_stmt(tmpfile, stmt, ast, num_strs, num_ifs);
+                string_literals.append(&mut results.0);
+                num_ifs = results.1;
+            }
+            if if_stmt.else_expr.is_some() {
+                writeln!(tmpfile, "jmp ELSE_{}", sto).unwrap();
+            }
+            writeln!(tmpfile, "IF_{}:", sto).unwrap();
+            // else expression
+            if if_stmt.else_expr.is_some() {
+                for stmt in &if_stmt.else_expr.as_ref().unwrap().0 {
+                    let mut results = write_stmt(tmpfile, stmt, ast, num_strs+string_literals.len(), num_ifs);
+                    string_literals.append(&mut results.0);
+                    num_ifs = results.1;
+                }
+                writeln!(tmpfile, "ELSE_{}:", sto).unwrap();
+            }
+        }
+    }
+    (string_literals, num_ifs)
 }
 
 fn write_predefined(file: &mut File, ident: &str) {

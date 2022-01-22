@@ -9,4 +9,14 @@ let main () = {
     msg puts
     "hey there!\n" puts
     1234 print "\n" puts
+     2 1 =? IF { "EQUAL\n" puts }
+     ELSE { "NOT EQUAL\n" puts }
+
+     1 1 =? IF {
+        1 2 =? IF {
+            "WRONG1\n" puts
+        } ELSE {
+            "CORRECT\n" puts
+        }
+    }
 }
