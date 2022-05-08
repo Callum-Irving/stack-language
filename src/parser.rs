@@ -148,11 +148,9 @@ fn parse_expr(expr: Vec<Pair<Rule>>) -> Expr {
             Rule::ifstmt => {
                 let mut inner = statement.into_inner();
                 let if_expr = parse_expr(inner.next().unwrap().into_inner().collect());
-                let else_expr = if let Some(expression) = inner.next() {
-                    Some(parse_expr(expression.into_inner().collect()))
-                } else {
-                    None
-                };
+                let else_expr = inner
+                    .next()
+                    .map(|expr| parse_expr(expr.into_inner().collect()));
                 Stmt::IfStmt(IfStmt { if_expr, else_expr })
             }
             Rule::mathop => match statement.as_str() {

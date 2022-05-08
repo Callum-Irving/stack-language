@@ -5,7 +5,7 @@ use std::{fs::File, io::Write};
 use crate::parser::{ComparisonOp, Literal, MathOp, Program, Stmt};
 use crate::RET_STACK_SIZE;
 
-const PREDEFINED: [&'static str; 6] = ["puts", "print", "drop", "dup", "swap", "read"];
+const PREDEFINED: [&str; 6] = ["puts", "print", "drop", "dup", "swap", "read"];
 
 pub fn generate_asm(ast: Program, filename: PathBuf) {
     // let mut tmpfile = NamedTempFile::new().unwrap();
@@ -64,7 +64,7 @@ pub fn generate_asm(ast: Program, filename: PathBuf) {
 
     string_literals
         .into_iter()
-        .map(|s| escape_str(s))
+        .map(escape_str)
         .enumerate()
         .for_each(|(i, string)| {
             writeln!(tmpfile, "str_{}: db {}, 0", i, string).unwrap();
@@ -219,7 +219,13 @@ fn write_stmt(
             // else expression
             if if_stmt.else_expr.is_some() {
                 for stmt in &if_stmt.else_expr.as_ref().unwrap().0 {
-                    let mut results = write_stmt(tmpfile, stmt, ast, num_strs+string_literals.len(), num_ifs);
+                    let mut results = write_stmt(
+                        tmpfile,
+                        stmt,
+                        ast,
+                        num_strs + string_literals.len(),
+                        num_ifs,
+                    );
                     string_literals.append(&mut results.0);
                     num_ifs = results.1;
                 }
