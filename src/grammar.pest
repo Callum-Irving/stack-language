@@ -11,7 +11,7 @@ function = { "let" ~ ident ~ "(" ~ inputs ~ outputs ~ ")" ~ "=" ~ "{" ~ expr ~ "
 inputs = { basictype* }
 outputs = { ("->" ~ basictype+)? }
 
-expr = { stmt+ }
+expr = { stmt* }
 
 stmt = {
     ifstmt

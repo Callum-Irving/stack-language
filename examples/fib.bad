@@ -1,7 +1,5 @@
 let fib ( int -> int ) = {
-	dup 2 < IF {
-		dup drop
-	} ELSE {
+	dup 2 < IF {} ELSE {
 		1 - dup fib swap 1 - fib +
 	}
 }
